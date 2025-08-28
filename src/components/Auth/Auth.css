@@ -287,14 +287,3 @@
   font-size: 0.75rem;
 }
 
-.otp-actions {
-  display: flex;
-  flex-direction: column;
-  gap: 1rem;
-  margin-top: 1rem;
-}
-
-.otp-actions .link-button {
-  text-align: center;
-  padding: 0.5rem;
-}

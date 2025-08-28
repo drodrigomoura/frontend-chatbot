@@ -17,11 +17,7 @@ interface AuthContextType {
   closeAuthModal: () => void;
   openUserProfile: () => void;
   closeUserProfile: () => void;
-  signInWithOTP: (email: string) => Promise<{ data?: any; error?: any }>;
-  verifyOTP: (
-    email: string,
-    token: string,
-  ) => Promise<{ data?: any; error?: any }>;
+  signInWithPassword: (email: string, password: string) => Promise<{ data?: any; error?: any }>;
   signOut: () => Promise<{ error?: any }>;
   resetPassword: (email: string) => Promise<{ data?: any; error?: any }>;
   updateProfile: (updates: any) => Promise<{ data?: any; error?: any }>;
@@ -75,13 +71,11 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     return () => subscription?.unsubscribe();
   }, []);
 
-  const signInWithOTP = async (email: string) => {
+  const signInWithPassword = async (email: string, password: string) => {
     try {
-      const { data, error } = await supabase.auth.signInWithOtp({
+      const { data, error } = await supabase.auth.signInWithPassword({
         email,
-        options: {
-          emailRedirectTo: `http://localhost:3000`,
-        },
+        password,
       });
       return { data, error };
     } catch (error: any) {
@@ -89,18 +83,6 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     }
   };
 
-  const verifyOTP = async (email: string, token: string) => {
-    try {
-      const { data, error } = await supabase.auth.verifyOtp({
-        email,
-        token,
-        type: 'email',
-      });
-      return { data, error };
-    } catch (error: any) {
-      return { data: null, error };
-    }
-  };
 
   const signOut = async () => {
     try {
@@ -146,8 +128,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     closeAuthModal,
     openUserProfile,
     closeUserProfile,
-    signInWithOTP,
-    verifyOTP,
+    signInWithPassword,
     signOut,
     resetPassword,
     updateProfile,
