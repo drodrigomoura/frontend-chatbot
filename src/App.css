@@ -74,6 +74,8 @@ body {
   padding: 0.5rem 0.75rem;
   cursor: pointer;
   transition: all 0.2s;
+  height: 2.25rem;
+  box-sizing: border-box;
 }
 
 .user-button:hover {
@@ -110,6 +112,8 @@ body {
   font-weight: 500;
   font-size: 0.875rem;
   transition: background-color 0.2s;
+  height: 2.25rem;
+  box-sizing: border-box;
 }
 
 .login-button:hover {
@@ -125,6 +129,8 @@ body {
   align-items: center;
   gap: 0.5rem;
   background: transparent;
+  height: 2.25rem;
+  box-sizing: border-box;
 }
 
 .status-indicator.connected {
@@ -153,6 +159,8 @@ body {
   align-items: center;
   gap: 0.5rem;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  height: 2.25rem;
+  box-sizing: border-box;
 }
 
 .config-button:hover {

@@ -13,16 +13,23 @@ interface ChatWidgetProps {
   onDisconnect?: () => void;
 }
 
+interface Button {
+  title: string;
+  payload: string;
+}
+
 interface Message {
   id: number;
   type: 'user' | 'bot';
   text: string;
   timestamp: string;
+  buttons?: Button[];
 }
 
 interface RasaResponse {
   recipient_id: string;
   text: string;
+  buttons?: Button[];
 }
 
 export const ChatWidget = ({
@@ -34,13 +41,15 @@ export const ChatWidget = ({
   onConnect,
   onDisconnect,
 }: ChatWidgetProps) => {
-  const { user } = useAuth();
+  const { user, openAuthModal } = useAuth();
   const [isOpen, setIsOpen] = useState<boolean>(true);
   const [messages, setMessages] = useState<Message[]>([]);
   const [inputValue, setInputValue] = useState<string>('');
   const [isTyping, setIsTyping] = useState<boolean>(false);
   const [isConnected, setIsConnected] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
+  const [authTriggeredByBot, setAuthTriggeredByBot] = useState<boolean>(false);
+  const [originalMessage, setOriginalMessage] = useState<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -89,6 +98,8 @@ export const ChatWidget = ({
                   user_id: user.id,
                   email: user.email || '',
                   user_metadata: user.user_metadata,
+                  // Incluir el token de autorización en metadata para que Rasa pueda accederlo
+                  Authorization: headers['Authorization'] || '',
                 }
               : undefined,
           }),
@@ -96,17 +107,26 @@ export const ChatWidget = ({
 
         if (response.ok) {
           const data: RasaResponse[] = await response.json();
+          
+          // Debug: Log de la respuesta de Rasa
+          console.log('🔍 Respuesta de Rasa:', data);
 
           if (data && data.length > 0) {
             const combinedText = data
               .map((item: RasaResponse) => decodeUnicode(item.text))
               .join('\n');
 
+            // Combinar todos los botones de todas las respuestas
+            const allButtons = data
+              .filter((item: RasaResponse) => item.buttons)
+              .flatMap((item: RasaResponse) => item.buttons!);
+
             const botMessage: Message = {
               id: Date.now(),
               type: 'bot',
               text: combinedText,
               timestamp: new Date().toISOString(),
+              buttons: allButtons.length > 0 ? allButtons : undefined,
             };
 
             setMessages((prev) => [...prev, botMessage]);
@@ -147,10 +167,51 @@ export const ChatWidget = ({
       setIsTyping(true);
       setError(null);
 
+      // Guardar mensaje original para posible reenvío después de autenticación
+      setOriginalMessage(text.trim());
       sendMessageViaRest(text);
     },
     [decodeUnicode, sendMessageViaRest],
   );
+
+  const handleButtonClick = useCallback(
+    (buttonTitle: string, payload: string): void => {
+      // Manejar botón especial de autenticación
+      if (payload === '/autenticar_usuario') {
+        // Si ya está logueado, no hacer nada
+        if (user) {
+          return;
+        }
+        setAuthTriggeredByBot(true); // Guardar que el bot pidió autenticación
+        openAuthModal();
+        return;
+      }
+
+      // Crear mensaje de usuario y enviarlo
+      const userMessage: Message = {
+        id: Date.now(),
+        type: 'user',
+        text: buttonTitle,
+        timestamp: new Date().toISOString(),
+      };
+
+      setMessages((prev) => [...prev, userMessage]);
+      setIsTyping(true);
+      setError(null);
+      sendMessageViaRest(payload);
+    },
+    [sendMessageViaRest, openAuthModal],
+  );
+
+  // Efecto para ejecutar acción pendiente después del login
+  useEffect(() => {
+    if (user && authTriggeredByBot && originalMessage) {
+      console.log('🔄 Reenviando mensaje original después del login:', originalMessage);
+      sendMessageViaRest(originalMessage);
+      setAuthTriggeredByBot(false);
+      setOriginalMessage(null);
+    }
+  }, [user, authTriggeredByBot, originalMessage, sendMessageViaRest]);
 
   useEffect(() => {
     const checkConnection = async (): Promise<void> => {
@@ -176,6 +237,12 @@ export const ChatWidget = ({
           body: JSON.stringify({
             sender: user?.id || 'test-connection',
             message: 'test',
+            metadata: user && headers['Authorization']
+              ? {
+                  user_id: user.id,
+                  Authorization: headers['Authorization'],
+                }
+              : undefined,
           }),
         });
 
@@ -270,6 +337,19 @@ export const ChatWidget = ({
                 <div key={message.id} className={`message ${message.type}`}>
                   <div className="message-content">
                     <p>{message.text}</p>
+                    {message.buttons && message.buttons.length > 0 && (
+                      <div className="message-buttons">
+                        {message.buttons.map((button, index) => (
+                          <button
+                            key={index}
+                            className="message-button"
+                            onClick={() => handleButtonClick(button.title, button.payload)}
+                          >
+                            {button.title}
+                          </button>
+                        ))}
+                      </div>
+                    )}
                     <span className="message-time">
                       {formatTime(message.timestamp)}
                     </span>
