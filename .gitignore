@@ -3,6 +3,10 @@
 *.local
 *.log*
 
+# Environment variables
+.env
+.env.local
+
 # Dist
 node_modules
 dist/
